@@ -101,13 +101,14 @@ EXTRA_DEFINES = $(MOTION_DEFINES) $(LCD_DEFINES) $(SD_DEFINES) $(BOARD_DEFINES) 
 
 F_CPU = 16000000
 CXXSRC = $(EXTRA_FILES) avr/AvrPort.cpp Host.cpp Time.cpp GcodeQueue.cpp GCode.cpp \
-Globals.cpp Temperature.cpp avr/ArduinoMap.cpp Eeprom.cpp
+Globals.cpp Temperature.cpp avr/ArduinoMap.cpp Eeprom.cpp \
+avr/Arduino.cpp
 
 
 FORMAT = ihex
 
 # Place -D or -U options here
-CXXBENICE = -fno-default-inline
+CXXBENICE = -fno-default-inline -D__DELAY_BACKWARD_COMPATIBLE__
 CXXBEMEAN =
 CXXDEFS = -DF_CPU=$(F_CPU) $(EXTRA_DEFINES)
 CXXEXTRA = -fno-threadsafe-statics -fwrapv -fno-exceptions -ffunction-sections -fdata-sections -Wall -Wextra

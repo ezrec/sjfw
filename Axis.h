@@ -13,11 +13,10 @@
 class Axis
 {
   public:
-  Axis(Pin step_pin, Pin dir_pin, Pin enable_pin, Pin min_pin, Pin max_pin, 
-           float steps_per_unit, bool dir_inverted, 
+  Axis(    Pin min_pin, Pin max_pin, float steps_per_unit, bool dir_inverted, 
            float max_feedrate, float home_feedrate, float min_feedrate, 
            float accel_rate_in_units, bool disable_after_move)
-           :step_pin(step_pin), dir_pin(dir_pin), enable_pin(enable_pin), min_pin(min_pin), max_pin(max_pin)
+           :min_pin(min_pin), max_pin(max_pin)
   {
     // Initialize class data
     this->steps_per_unit = steps_per_unit;
@@ -33,10 +32,10 @@ class Axis
     minstop_pos = 10000;
     maxstop_pos = 10000;
 
+    // Unused parameters
+    (void)home_feedrate;
+
     // Initialize pins we control.
-    if(!step_pin.isNull()) { step_pin.setDirection(true); step_pin.setValue(false); }
-    if(!dir_pin.isNull())  { dir_pin.setDirection(true); dir_pin.setValue(false); }
-    if(!enable_pin.isNull()) { enable_pin.setDirection(true); enable_pin.setValue(true); }
     if(!min_pin.isNull()) { min_pin.setDirection(false); min_pin.setValue(PULLUPS); }
     if(!max_pin.isNull()) { max_pin.setDirection(false); max_pin.setValue(PULLUPS); }
   }
@@ -77,8 +76,8 @@ class Axis
   void  setStepsPerUnit(float steps) { if(steps <= 0) return; steps_per_unit = steps; spu_int = steps; }
   void  setAccel(float rate) { if(rate <= 0) return; accel_rate = rate; }
   float getAccel() { return accel_rate; }
-  void  disable() { if(!enable_pin.isNull()) enable_pin.setValue(true); }
-  void  enable() { if(!enable_pin.isNull()) enable_pin.setValue(false); }
+  void  disable() { }
+  void  enable() { }
 
   float getMovesteps(float start, float end, bool& dir) 
   { 
@@ -139,6 +138,11 @@ class Axis
     return start + (float)((float)steps / steps_per_unit * (dir ? 1.0 : -1.0));
   }
 
+  int doOneStep()
+  {
+    return 1;
+  }
+
   inline void doStep()
   {
     if(steps_remaining == 0) return;
@@ -167,10 +171,9 @@ class Axis
       }
     }
 
-    step_pin.setValue(true);
-    step_pin.setValue(false);
+    steps_remaining -= doOneStep();
 
-    if(--steps_remaining == 0)
+    if(steps_remaining == 0)
     {
       //HOST.labelnum("FINISH MOVE, ", steps_to_take, true);
       position += (float)((float)steps_to_take / steps_per_unit * (direction ? 1.0 : -1.0));
@@ -186,8 +189,6 @@ class Axis
     direction = dir;
     steps_to_take = steps;
     steps_remaining = steps;
-    if(direction) dir_pin.setValue(!dir_inverted);
-    else dir_pin.setValue(dir_inverted);
     return true;
   }  
 
@@ -197,29 +198,19 @@ class Axis
 
   void changepinStep(Port p, int bit)
   {
-    step_pin = Pin(p, bit);
-    if(step_pin.isNull())
-      return;
-    step_pin.setDirection(true); step_pin.setValue(false);
+    (void)p; (void)bit; // unused
   }
 
   void changepinDir(Port p, int bit)
   {
-    dir_pin = Pin(p, bit);
-    if(dir_pin.isNull())
-      return;
-
-    dir_pin.setDirection(true); dir_pin.setValue(false);
+    (void)p; (void)bit; // unused
   }
 
   void changepinEnable(Port p, int bit)
   {
-    enable_pin = Pin(p, bit);
-    if(enable_pin.isNull())
-      return;
-
-    enable_pin.setDirection(true); enable_pin.setValue(true);
+    (void)p; (void)bit; // unused
   }
+
 
   void changepinMin(Port p, int bit)
   {
@@ -249,19 +240,13 @@ class Axis
 
   
 
-  bool isInvalid() { return step_pin.isNull(); }
+  bool isInvalid() { return true; }
   void reportConfigStatus(Host& h)
   {
     if(steps_per_unit == 1)
       h.write_P(PSTR(" no steps_per_unit "));
     if(accel_rate == 1)
       h.write_P(PSTR(" no accel "));
-    if(step_pin.isNull())
-      h.write_P(PSTR(" no step "));
-    if(dir_pin.isNull())
-      h.write_P(PSTR(" no dir "));
-    if(enable_pin.isNull())
-      h.write_P(PSTR(" no enable "));
     if(min_pin.isNull())
       h.write_P(PSTR(" no min "));
     if(max_pin.isNull())
@@ -277,15 +262,17 @@ class Axis
   }
   float getStepsPerMM() { return steps_per_unit; }
 
+  bool getDir() { return direction ^ dir_inverted; }
+
 private:
   static bool PULLUPS;
   static bool END_INVERT;
   volatile float position;
-	volatile bool direction;
-	volatile uint32_t steps_to_take;
-	volatile uint32_t steps_remaining;
+  volatile bool direction;
+  volatile uint32_t steps_to_take;
+  volatile uint32_t steps_remaining;
 
-	float steps_per_unit;
+  float steps_per_unit;
   uint32_t spu_int;
 
   float    start_feed, max_feed;
@@ -295,13 +282,10 @@ private:
   // Automatically set positions when hitting endstops.
   float minstop_pos;
   float maxstop_pos;
-	
-	 Pin step_pin;
-	 Pin dir_pin;
-	bool dir_inverted;
-	 Pin enable_pin;
-	 Pin min_pin;
-	 Pin max_pin;
+
+  bool dir_inverted;
+  Pin min_pin;
+  Pin max_pin;
   bool disable_after_move;
 
 };

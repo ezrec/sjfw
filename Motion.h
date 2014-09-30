@@ -7,7 +7,7 @@
 
 #include "config.h"
 #include "GCode.h"
-#include "Axis.h"
+#include "AxisStepper.h"
 
 class Motion
 {
@@ -17,14 +17,13 @@ class Motion
 public:
   static Motion& Instance() { static Motion instance; return instance; };
 private:
-  explicit Motion() :AXES((Axis[NUM_AXES])
+  explicit Motion()
   {
-    Axis(X_STEP_PIN,X_DIR_PIN,X_ENABLE_PIN,X_MIN_PIN,X_MAX_PIN,X_STEPS_PER_UNIT,X_INVERT_DIR,X_MAX_FEED,X_AVG_FEED,X_START_FEED,X_ACCEL_RATE,X_DISABLE),
-    Axis(Y_STEP_PIN,Y_DIR_PIN,Y_ENABLE_PIN,Y_MIN_PIN,Y_MAX_PIN,Y_STEPS_PER_UNIT,Y_INVERT_DIR,Y_MAX_FEED,Y_AVG_FEED,Y_START_FEED,Y_ACCEL_RATE,Y_DISABLE),
-    Axis(Z_STEP_PIN,Z_DIR_PIN,Z_ENABLE_PIN,Z_MIN_PIN,Z_MAX_PIN,Z_STEPS_PER_UNIT,Z_INVERT_DIR,Z_MAX_FEED,Z_AVG_FEED,Z_START_FEED,Z_ACCEL_RATE,Z_DISABLE),
-    Axis(A_STEP_PIN,A_DIR_PIN,A_ENABLE_PIN,Pin(),Pin(),A_STEPS_PER_UNIT,A_INVERT_DIR,A_MAX_FEED,A_AVG_FEED,A_START_FEED,A_ACCEL_RATE,A_DISABLE)
-  })
-  {
+    AXES[0] = new AxisStepper(X_STEP_PIN,X_DIR_PIN,X_ENABLE_PIN,X_MIN_PIN,X_MAX_PIN,X_STEPS_PER_UNIT,X_INVERT_DIR,X_MAX_FEED,X_AVG_FEED,X_START_FEED,X_ACCEL_RATE,X_DISABLE);
+    AXES[1] = new AxisStepper(Y_STEP_PIN,Y_DIR_PIN,Y_ENABLE_PIN,Y_MIN_PIN,Y_MAX_PIN,Y_STEPS_PER_UNIT,Y_INVERT_DIR,Y_MAX_FEED,Y_AVG_FEED,Y_START_FEED,Y_ACCEL_RATE,Y_DISABLE);
+    AXES[2] = new AxisStepper(Z_STEP_PIN,Z_DIR_PIN,Z_ENABLE_PIN,Z_MIN_PIN,Z_MAX_PIN,Z_STEPS_PER_UNIT,Z_INVERT_DIR,Z_MAX_FEED,Z_AVG_FEED,Z_START_FEED,Z_ACCEL_RATE,Z_DISABLE);
+    AXES[3] = new AxisStepper(A_STEP_PIN,A_DIR_PIN,A_ENABLE_PIN,Pin(),Pin(),A_STEPS_PER_UNIT,A_INVERT_DIR,A_MAX_FEED,A_AVG_FEED,A_START_FEED,A_ACCEL_RATE,A_DISABLE);
+
     setupInterrupt();
     interruptOverflow=0;
     feed_modifier = 1.0f;
@@ -33,7 +32,7 @@ private:
   Motion(Motion&);
   Motion& operator=(Motion&);
 
-  Axis AXES[NUM_AXES];
+  Axis *AXES[NUM_AXES];
   volatile GCode* volatile current_gcode;
   volatile unsigned long deltas[NUM_AXES];
   volatile long errors[NUM_AXES];
@@ -43,7 +42,7 @@ private:
 
 public:
   // Return request Axis
-  Axis& getAxis(int idx) { return AXES[idx]; }
+  Axis& getAxis(int idx) { return *AXES[idx]; }
 
   // Returns current position of all Axes
   Point& getCurrentPosition();

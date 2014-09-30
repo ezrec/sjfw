@@ -365,7 +365,7 @@ uint32_t getFilePos() {
 	{
 		return (uint32_t)file->pos;
 	}
-	return NULL;
+	return 0;
 }
 
 uint32_t getFileSize() {
@@ -373,7 +373,7 @@ uint32_t getFileSize() {
 	{
 		return (uint32_t)file->dir_entry.file_size;
 	}
-	return NULL;
+	return 0;
 }
 
 uint32_t getCurrentPos() {

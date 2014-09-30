@@ -174,6 +174,7 @@ void Motion::disableAllMotors()
 void Motion::checkdisable(GCode& gcode)
 {
   // This was STUPID
+  (void)gcode; // unused
 }
 
 void Motion::disableAxis(int axis)
@@ -603,8 +604,8 @@ void Motion::gcode_optimize(GCode& gcode, GCode& nextg)
     HOST.labelnum("sf: ", gcode.startfeed, false);
 #endif    
 
-  gcode.endfeed = max(gcode.endfeed,labs(endspeeds[gcode.leading_axis]));
-  nextg.startfeed = max(nextg.startfeed,labs(startspeeds[nextg.leading_axis]));
+  gcode.endfeed = max(gcode.endfeed,(uint32_t)labs(endspeeds[gcode.leading_axis]));
+  nextg.startfeed = max(nextg.startfeed,(uint32_t)labs(startspeeds[nextg.leading_axis]));
   // because we only lookahead one move, our maximum exit speed has to be either the desired
   // exit speed or the speed that the next move can reach to 0 (0+jerk, actually) during.
 

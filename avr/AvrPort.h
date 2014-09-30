@@ -81,7 +81,7 @@ public:
 	void setDirection(bool out) { port.setPinDirection(pin_index,out); }
 	bool getValue() { return port.getPin(pin_index); }
 	void setValue(bool on) { port.setPin(pin_index,on); }
-	const uint8_t getPinIndex() const { return pin_index; }
+	uint8_t getPinIndex() { return pin_index; }
   uint16_t getPortIndex() const { return port.getpb(); }
 };
 

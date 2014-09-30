@@ -26,7 +26,7 @@ void GcodeQueue::checkaxes()
 		//HOST.write("checkaxes ");
 		last = now;
 		bool axesseen[NUM_AXES] = { false };
-		for(int x=0;x<codes.getCount();x++)
+		for(RB_SIZE_TYPE x=0;x<codes.getCount();x++)
 		{
 			for(int ax = 0; ax<NUM_AXES; ax++)
 			{

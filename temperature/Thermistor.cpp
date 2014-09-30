@@ -76,7 +76,7 @@ Thermistor::SensorState Thermistor::update() {
 		return SS_ERROR_UNPLUGGED;
 	}
 
-	int16_t avg = cumulative / SAMPLE_COUNT;
+	//int16_t avg = cumulative / SAMPLE_COUNT;
 
 	//current_temp = thermistorToCelsius(avg,table_index);
 	current_temp = thermistorToCelsius(temp,table_index);

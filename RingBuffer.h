@@ -62,7 +62,7 @@ template<typename T> class RingBufferT
       return d;
     }
 
-    inline const RB_SIZE_TYPE getCount()
+    inline RB_SIZE_TYPE getCount()
     {
       RB_SIZE_TYPE c;
       ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -72,17 +72,17 @@ template<typename T> class RingBufferT
       return c;
     }
 
-    inline const RB_SIZE_TYPE getCapacity()
+    inline RB_SIZE_TYPE getCapacity()
     {
       return (size - getCount());
     }
 
-    inline const bool isEmpty()
+    inline bool isEmpty()
     {
       return (getCount() == 0);
     }
 
-    inline const bool isFull()
+    inline bool isFull()
     {
       return (getCount() >= size);
     }

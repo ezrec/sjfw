@@ -82,10 +82,8 @@ int16_t thermistorToCelsius(int16_t reading, int8_t table_idx) {
   int8_t bottom = 0;
   int8_t top = NUMTEMPS-1;
   int8_t mid = (bottom+top)/2;
-  int8_t t;
   Entry e;
   while (mid > bottom) {
-	  t = mid;
 	  e = getEntry(mid,table_idx);
 	  if (reading < e.adc) {
 		  top = mid;

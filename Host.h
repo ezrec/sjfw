@@ -31,6 +31,8 @@ class Host
 			if(port == 2)
 				return i2();
 			else
+#else
+			(void)port;	// Unused
 #endif
 			return i0();
 		}
@@ -135,7 +137,9 @@ class Host
 		void rxerror(const char*errmsg, int32_t linenum)
 		{
 			labelnum("rs ", linenum, false);
-#ifndef REPRAP_COMPAT
+#ifdef REPRAP_COMPAT
+			(void)errmsg; // unused
+#else
 			write(' ');
 			write(errmsg);
 #endif

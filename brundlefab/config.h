@@ -1,6 +1,10 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
+#define HAS_LCD  1
+#define HAS_SD   1
+#define HAS_KEYPAD 1
+
 #include "config-common.h"
 
 #define NUM_AXES 4
@@ -11,20 +15,17 @@
 #define HOTEND_TEMP_PIN 13
 #define PLATFORM_TEMP_PIN 14
 
-#define HOTEND_HEAT_PIN Pin(PortNull, 0)
-#define PLATFORM_HEAT_PIN Pin(PortNull, 0)
+#define HOTEND_HEAT_PIN -1
+#define PLATFORM_HEAT_PIN -1
 
-//#define SD_AUTORUN 
-#define SD_DETECT_PIN   Pin()
-#define SD_WRITE_PIN    Pin()
-#define SD_SELECT_PIN   Pin(PortNull, 0)
+#define SD_SELECT_PIN   SS
 
 
 #define X_DCMOTOR       1
 #define X_ENCODER_A     18
 #define X_ENCODER_B     14
-#define X_MIN_PIN       Pin(PortNull, 0)
-#define X_MAX_PIN       Pin(PortNull, 0)
+#define X_MIN_PIN       -1
+#define X_MAX_PIN       -1
 #define X_INVERT_DIR    false
 #define X_STEPS_PER_UNIT 62.745
 #define X_MAX_FEED      12000
@@ -36,8 +37,8 @@
 #define Y_DCMOTOR       2
 #define Y_ENCODER_A     19
 #define Y_ENCODER_B     15
-#define Y_MIN_PIN       Pin(PortNull, 0)
-#define Y_MAX_PIN       Pin(PortNull, 0)
+#define Y_MIN_PIN       -1
+#define Y_MAX_PIN       -1
 #define Y_INVERT_DIR    false
 #define Y_STEPS_PER_UNIT 62.745
 #define Y_MAX_FEED      12000
@@ -49,8 +50,8 @@
 #define Z_DCMOTOR       3
 #define Z_ENCODER_A     20
 #define Z_ENCODER_B     16
-#define Z_MIN_PIN       Pin(PortNull, 0)
-#define Z_MAX_PIN       Pin(PortNull, 0)
+#define Z_MIN_PIN       -1
+#define Z_MAX_PIN       -1
 #define Z_INVERT_DIR    true
 #define Z_STEPS_PER_UNIT 2267.718
 #define Z_MAX_FEED      150
@@ -74,30 +75,35 @@
 // The following config is for a parallel LCD connected to 
 // AUX-2 in 4-bit mode.
 
-#if 0
 #define USE4BITMODE
-#define LCD_RS_PIN      Pin(PortK,1)
-#define LCD_RW_PIN      Pin(PortL,7)
-#define LCD_E_PIN       Pin(PortK,3)
-#define LCD_0_PIN       Pin()
-#define LCD_1_PIN       Pin()
-#define LCD_2_PIN       Pin()
-#define LCD_3_PIN       Pin()
-#define LCD_4_PIN       Pin(PortF,5)
-#define LCD_5_PIN       Pin(PortK,2)
-#define LCD_6_PIN       Pin(PortL,5)
-#define LCD_7_PIN       Pin(PortK,4)
+#define LCD_I2C_ADDR    0x20
+
+/* NOTE: Since LCD_I2C_ADDR is defined, these 'pins' are off the
+ * GPIO Expander at the I2C address
+ */
+#define LCD_BL_PIN      7
+#define LCD_RS_PIN      6
+#define LCD_RW_PIN      5
+#define LCD_E_PIN       4
+#define LCD_0_PIN       -1
+#define LCD_1_PIN       -1
+#define LCD_2_PIN       -1
+#define LCD_3_PIN       -1
+#define LCD_4_PIN       0
+#define LCD_5_PIN       1
+#define LCD_6_PIN       2
+#define LCD_7_PIN       3
 
 #define LCD_X 20
 #define LCD_Y 4
 #define LCD_LINESTARTS {0x0, 0x40, 0x14, 0x54}
 
-
+#ifdef HAS_KEYPAD
 #define KP_ROWS 4
 #define KP_COLS 4
 #define KEYPAD_BUTTONMAP "123A", "456B", "789C", "*0#D"
-#define KEYPAD_ROWPINS Pin(PortH,1),Pin(PortH,0),Pin(PortA,1),Pin(PortA,3)
-#define KEYPAD_COLPINS Pin(PortA,5), Pin(PortA,7),Pin(PortC,6),Pin(PortC,4)
+#define KEYPAD_ROWPINS 8,9,10,11
+#define KEYPAD_COLPINS 12,13,14,15
 #define KEYPAD_DEBOUNCE_MICROS 50
 #endif
 

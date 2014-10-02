@@ -6,8 +6,6 @@
  */
 
 #include "config.h"
-#include "Host.h"
-#include "AvrPort.h"
 #include <math.h>
 
 #include "Axis.h"
@@ -15,7 +13,7 @@
 class AxisStepper : public Axis
 {
   public:
-  AxisStepper(Pin step_pin, Pin dir_pin, Pin enable_pin, Pin min_pin, Pin max_pin, 
+  AxisStepper(int step_pin, int dir_pin, int enable_pin, int min_pin, int max_pin, 
            float steps_per_unit, bool dir_inverted, 
            float max_feedrate, float home_feedrate, float min_feedrate, 
            float accel_rate_in_units, bool disable_after_move)
@@ -25,18 +23,18 @@ class AxisStepper : public Axis
              step_pin(step_pin), dir_pin(dir_pin), enable_pin(enable_pin)
   {
     // Initialize pins we control.
-    if(!step_pin.isNull()) { step_pin.setDirection(true); step_pin.setValue(false); }
-    if(!dir_pin.isNull())  { dir_pin.setDirection(true); dir_pin.setValue(false); }
-    if(!enable_pin.isNull()) { enable_pin.setDirection(true); enable_pin.setValue(true); }
+    if(!(step_pin < 0)) { pinMode(step_pin, OUTPUT); }
+    if(!(dir_pin < 0))  { pinMode(dir_pin, OUTPUT); }
+    if(!(enable_pin < 0)) { pinMode(enable_pin, OUTPUT); }
   }
     
-  void  disable() { if(!enable_pin.isNull()) enable_pin.setValue(true); }
-  void  enable() { if(!enable_pin.isNull()) enable_pin.setValue(false); }
+  void  disable() { if(!(enable_pin < 0)) digitalWrite(enable_pin, true); }
+  void  enable() { if(!(enable_pin < 0)) digitalWrite(enable_pin, false); }
 
   int32_t doOneStep()
   {
-    step_pin.setValue(true);
-    step_pin.setValue(false);
+    digitalWrite(step_pin, true);
+    digitalWrite(step_pin, false);
 
     Axis::doOneStep();
 
@@ -51,51 +49,55 @@ class AxisStepper : public Axis
     if (!valid)
         return false;
 
-    dir_pin.setValue(getDir());
+    digitalWrite(dir_pin, getDir());
     return true;
   }  
 
-  void changepinStep(Port p, int bit)
+  void changepinStep(int pin)
   {
-    step_pin = Pin(p, bit);
-    if(step_pin.isNull())
-      return;
-    step_pin.setDirection(true); step_pin.setValue(false);
-  }
-
-  void changepinDir(Port p, int bit)
-  {
-    dir_pin = Pin(p, bit);
-    if(dir_pin.isNull())
+    step_pin = pin;
+    if((step_pin < 0))
       return;
 
-    dir_pin.setDirection(true); dir_pin.setValue(false);
+    pinMode(step_pin, OUTPUT);
+    digitalWrite(step_pin, 0);
   }
 
-  void changepinEnable(Port p, int bit)
+  void changepinDir(int pin)
   {
-    enable_pin = Pin(p, bit);
-    if(enable_pin.isNull())
+    dir_pin = pin;
+    if((dir_pin < 0))
       return;
 
-    enable_pin.setDirection(true); enable_pin.setValue(true);
+    pinMode(dir_pin, OUTPUT);
+    digitalWrite(dir_pin, 0);
   }
 
-  bool isInvalid() { return step_pin.isNull(); }
+  void changepinEnable(int pin)
+  {
+    enable_pin = pin;
+    if((enable_pin < 0))
+      return;
+
+    pinMode(enable_pin, OUTPUT);
+    digitalWrite(enable_pin, 0);
+  }
+
+  bool isInvalid() { return (step_pin < 0); }
   void reportConfigStatus(Host& h)
   {
-    if(step_pin.isNull())
+    if((step_pin < 0))
       h.write_P(PSTR(" no step "));
-    if(dir_pin.isNull())
+    if((dir_pin < 0))
       h.write_P(PSTR(" no dir "));
-    if(enable_pin.isNull())
+    if((enable_pin < 0))
       h.write_P(PSTR(" no enable "));
   }
 
 private:
-  Pin step_pin;
-  Pin dir_pin;
-  Pin enable_pin;
+  int step_pin;
+  int dir_pin;
+  int enable_pin;
 
 };
 

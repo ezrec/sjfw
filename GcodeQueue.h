@@ -11,10 +11,13 @@
  *
  */
 
+#ifdef USE_SD
+#include <SD.h>
+#endif
+
 #include "RingBuffer.h"
 #include "GCode.h"
 #include "config.h"
-#include "AvrPort.h"
 
 class GcodeQueue
 {

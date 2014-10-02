@@ -6,19 +6,24 @@
  */
 
 #include "config.h"
-#include "Host.h"
-#include "AvrPort.h"
 #include <math.h>
+#include <stdint.h>
+
+#include <Arduino.h>
+#include <Stream.h>
+
+#include "Host.h"
 
 class Axis
 {
   public:
-  Axis(    Pin min_pin, Pin max_pin, float steps_per_unit, bool dir_inverted, 
+  Axis(    int min_pin, int max_pin, float steps_per_unit, bool dir_inverted, 
            float max_feedrate, float home_feedrate, float min_feedrate, 
            float accel_rate_in_units, bool disable_after_move)
-           :min_pin(min_pin), max_pin(max_pin)
   {
     // Initialize class data
+    this->min_pin = min_pin;
+    this->max_pin = max_pin;
     this->steps_per_unit = steps_per_unit;
     this->spu_int = steps_per_unit;
     this->disable_after_move = disable_after_move;
@@ -36,8 +41,10 @@ class Axis
     (void)home_feedrate;
 
     // Initialize pins we control.
-    if(!min_pin.isNull()) { min_pin.setDirection(false); min_pin.setValue(PULLUPS); }
-    if(!max_pin.isNull()) { max_pin.setDirection(false); max_pin.setValue(PULLUPS); }
+    if (min_pin >= 0)
+        pinMode(min_pin, INPUT_PULLUP);
+    if (max_pin >= 0)
+        pinMode(max_pin, INPUT_PULLUP);
   }
     
   void dump_to_host()
@@ -148,7 +155,7 @@ class Axis
     if(steps_remaining == 0) return;
     if(direction)
     {
-      if(!max_pin.isNull() && max_pin.getValue() != END_INVERT)
+      if(!(max_pin < 0) && digitalRead(max_pin) != END_INVERT)
       {
         if(maxstop_pos < 9000)
           position = maxstop_pos;
@@ -160,7 +167,7 @@ class Axis
     }
     else
     {
-      if(!min_pin.isNull() && min_pin.getValue() != END_INVERT)
+      if(!(min_pin < 0) && digitalRead(min_pin) != END_INVERT)
       {
         if(minstop_pos < 9000)
           position = minstop_pos;
@@ -196,38 +203,31 @@ class Axis
 
   void disableIfConfigured() { if(disable_after_move) disable(); }
 
-  void changepinStep(Port p, int bit)
+  void changepinStep(uint8_t pin)
   {
-    (void)p; (void)bit; // unused
   }
 
-  void changepinDir(Port p, int bit)
+  void changepinDir(uint8_t pin)
   {
-    (void)p; (void)bit; // unused
   }
 
-  void changepinEnable(Port p, int bit)
+  void changepinEnable(uint8_t pin)
   {
-    (void)p; (void)bit; // unused
   }
 
 
-  void changepinMin(Port p, int bit)
+  void changepinMin(uint8_t pin)
   {
-    min_pin = Pin(p, bit);
-    if(min_pin.isNull())
-      return;
+    min_pin = pin;
 
-    min_pin.setDirection(false); min_pin.setValue(PULLUPS);
+    pinMode(pin, INPUT_PULLUP);
   }
 
-  void changepinMax(Port p, int bit)
+  void changepinMax(uint8_t pin)
   {
-    max_pin = Pin(p, bit);
-    if(max_pin.isNull())
-      return;
+    max_pin = pin;
 
-    max_pin.setDirection(false); max_pin.setValue(PULLUPS);
+    pinMode(pin, INPUT_PULLUP);
   }
 
   void setMinStopPos(float v) { minstop_pos = v; }
@@ -244,21 +244,21 @@ class Axis
   void reportConfigStatus(Host& h)
   {
     if(steps_per_unit == 1)
-      h.write_P(PSTR(" no steps_per_unit "));
+      h.write(" no steps_per_unit ");
     if(accel_rate == 1)
-      h.write_P(PSTR(" no accel "));
-    if(min_pin.isNull())
-      h.write_P(PSTR(" no min "));
-    if(max_pin.isNull())
-      h.write_P(PSTR(" no max "));
+      h.write(" no accel ");
+    if((min_pin < 0))
+      h.write(" no min ");
+    if((max_pin < 0))
+      h.write(" no max ");
     if(disable_after_move)
-      h.write_P(PSTR(" DIS "));
+      h.write(" DIS ");
     if(dir_inverted)
-      h.write_P(PSTR(" INV "));
+      h.write(" INV ");
     if(PULLUPS)
-      h.write_P(PSTR(" EPULL "));
+      h.write(" EPULL ");
     if(END_INVERT)
-      h.write_P(PSTR(" EINV "));
+      h.write(" EINV ");
   }
   float getStepsPerMM() { return steps_per_unit; }
 
@@ -284,8 +284,8 @@ private:
   float maxstop_pos;
 
   bool dir_inverted;
-  Pin min_pin;
-  Pin max_pin;
+  int min_pin;
+  int max_pin;
   bool disable_after_move;
 
 };

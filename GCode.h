@@ -10,12 +10,10 @@
 
 // ato? functions.
 #include <stdlib.h>
-#include "Host.h"
 #include <string.h>
 #include "Point.h"
-#include "Time.h"
-#include "AvrPort.h"
-
+#include "Host.h"
+#include "Globals.h"
 
 // CodeParameter; basically a fancy union/variable datatype.
 class CodeParam
@@ -131,19 +129,19 @@ public:
   void dump_movedata()
   {
 #ifdef DEBUG_MOVE  
-    HOST.labelnum("L:",linenum,false);
-    HOST.labelnum(" T:",(millis() - startmillis),false);
-    HOST.labelnum(" F:",feed,false);
-    HOST.labelnum(" Steps:",axismovesteps[leading_axis],false);
-    HOST.labelnum(" Lead:",leading_axis,false);
-    HOST.labelnum(" CurI:",currentinterval,false);
-    HOST.labelnum(" CurF:",currentfeed,false);
-    HOST.labelnum(" StartF:",startfeed,false);
-    HOST.labelnum(" MaxF:",maxfeed,false);
-    HOST.labelnum(" EndF:",endfeed,false);
-    HOST.labelnum(" AUnt:",accel_until,false);
-    HOST.labelnum(" DFrom:",decel_from,false);
-    HOST.labelnum(" AInc:",accel_inc,true);
+    labelnum("L:",linenum,false);
+    labelnum(" T:",(millis() - startmillis),false);
+    labelnum(" F:",feed,false);
+    labelnum(" Steps:",axismovesteps[leading_axis],false);
+    labelnum(" Lead:",leading_axis,false);
+    labelnum(" CurI:",currentinterval,false);
+    labelnum(" CurF:",currentfeed,false);
+    labelnum(" StartF:",startfeed,false);
+    labelnum(" MaxF:",maxfeed,false);
+    labelnum(" EndF:",endfeed,false);
+    labelnum(" AUnt:",accel_until,false);
+    labelnum(" DFrom:",decel_from,false);
+    labelnum(" AInc:",accel_inc,true);
 #endif    
   }
 #endif
@@ -167,17 +165,17 @@ private:
 
 public:
   // TODO: this should be ELSEWHERE.
-  static Pin fanpin;
-  static Pin powerpin;
+  static int fanpin;
+  static int powerpin;
   static bool DONTRUNEXTRUDER;
   static bool ISRELATIVE;
   static void togglefan();
 
   // all good
+  File entry;
   float feed;
   int source;
 
-#ifndef USE_MARLIN
   // This was separated out, maybe will be again...
   // preparsed data specific to G1 type moves.
   uint32_t movesteps;
@@ -204,8 +202,6 @@ public:
 
   Point    endpos;
   Point    startpos;
-#endif  
-
 };
 
 

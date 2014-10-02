@@ -1,17 +1,10 @@
 #include "GCode.h"
 #include "GcodeQueue.h"
-#include "Time.h"
 #include "Globals.h"
-#include "Temperature.h"
-#include "SDCard.h"
-#include "Eeprom.h"
 #include <avr/pgmspace.h>
-#include "ArduinoMap.h"
-#ifndef USE_MARLIN
 #include "Motion.h"
-#else
-#include "Marlin.h"
-#endif
+#include "Temperature.h"
+#include "Eeprom.h"
 
 #ifdef HAS_LCD
 #include "LCDKeypad.h"
@@ -26,11 +19,11 @@ extern LCDKeypad LCDKEYPAD;
 
 Point GCode::lastpos;
 float GCode::lastfeed;
-Pin   GCode::fanpin = Pin();
+int   GCode::fanpin = -1;
 bool  GCode::DONTRUNEXTRUDER=false;
 bool  GCode::ISRELATIVE=false;
 
-Pin   GCode::powerpin = Pin();
+int   GCode::powerpin = -1;
 
 // Stuff to do if it's a G move code, otherwise not I guess.
 // This function MAY get called repeatedly before the execute() function.
@@ -239,13 +232,12 @@ void GCode::do_m_code()
 		case 0: // Finish up and shut down.
 		case 18: // 18 used by RepG.
     case 80: // power on
-      powerpin.setDirection(true);
-      powerpin.setValue(false);
+      pinMode(powerpin, OUTPUT);
+      digitalWrite(powerpin, 0);
       state = DONE;
       break;
     case 81: // power off
-      powerpin.setValue(true);
-      powerpin.setDirection(false);
+      pinMode(powerpin, INPUT_PULLUP);
       state = DONE;
       break;
 		case 84: // "Stop Idle Hold" == shut down motors.
@@ -274,16 +266,16 @@ void GCode::do_m_code()
 			break;
 #ifndef USE_MBIEC
 		case 106: // Fan on
-			if(!fanpin.isNull())
+			if(!(fanpin < 0))
 			{
-				fanpin.setValue(true);
+				digitalWrite(fanpin, true);
 			}
 			state = DONE;
 			break;
 		case 107: // Fan off
-			if(!fanpin.isNull())
+			if(!(fanpin < 0))
 			{
-				fanpin.setValue(false);
+				digitalWrite(fanpin, false);
 			}
 			state = DONE;
 			break;
@@ -338,7 +330,7 @@ void GCode::do_m_code()
 			break;
 		case 115: // Get Firmware Version and Capabilities
 			Host::Instance(source).labelnum("prog ", linenum, false);
-			Host::Instance(source).write_P(PSTR(" VERSION:" SJFW_VERSION " FREE_RAM:"));
+			Host::Instance(source).write_P(PSTR(" VERSION: 1.11 FREE_RAM:"));
 			Host::Instance(source).write(getFreeRam(),10);
 			Host::Instance(source).write_P(PSTR(" FEATURES:0/crc-v2"));
 			Host::Instance(source).endl();
@@ -397,16 +389,20 @@ void GCode::do_m_code()
 		case 204: // NOT STANDARD - get next filename from SD
 			Host::Instance(source).labelnum("prog ", linenum, false);
 			Host::Instance(source).write(' ');
-			Host::Instance(source).write(sdcard::getNextfile());
+			entry.close();
+			entry = SDFILE.openNextFile();
+			Host::Instance(source).write(entry.name());
 			Host::Instance(source).endl();
 			state = DONE;
 			break;
 		case 205: // NOT STANDARD - print file from last 204
 			Host::Instance(source).labelnum("prog ", linenum, false);
-			Host::Instance(source).write(sdcard::getCurrentfile());
-			if(sdcard::printcurrent())
+			Host::Instance(source).write(entry.name());
+			if(entry && !entry.isDirectory()) {
+				SDFILE = entry;
+				entry.close();
 				Host::Instance(source).write_P(PSTR(" BEGUN"));
-			else
+			} else
 				Host::Instance(source).write_P(PSTR(" FAIL"));
 
 			Host::Instance(source).endl();
@@ -448,18 +444,17 @@ void GCode::do_m_code()
     case 216: // NOT STANDARD - set fan pin
       if(!cps[P].isUnused())
       {
-        fanpin = Pin(ArduinoMap::getPort(cps[P].getInt()),  ArduinoMap::getPinnum(cps[P].getInt()));
-        fanpin.setDirection(true);
-        fanpin.setValue(false);
+        fanpin = cps[P].getInt();
+        pinMode(fanpin, OUTPUT);
+        digitalWrite(fanpin, false);
       }
       state = DONE;
       break;
     case 217: // set power pin
       if(!cps[P].isUnused())
       {
-        powerpin = Pin(ArduinoMap::getPort(cps[P].getInt()),  ArduinoMap::getPinnum(cps[P].getInt()));
-        powerpin.setDirection(false);
-        powerpin.setValue(true);
+        powerpin = cps[P].getInt();
+        pinMode(powerpin, INPUT_PULLUP);
       }
       state = DONE;
       break;
@@ -471,42 +466,6 @@ void GCode::do_m_code()
       SETOBJ(setMaxStopPos(*this));
       state = DONE;
       break;
-#ifdef HAS_LCD      
-    case 250: // NOT STANDARD - LCD RS pin
-      if(!cps[P].isUnused())
-        LCDKEYPAD.setRS(cps[P].getInt());
-      state = DONE;
-      break;
-    case 251: // NOT STANDARD - LCD RW pin
-      if(!cps[P].isUnused())
-        LCDKEYPAD.setRW(cps[P].getInt());
-      state = DONE;
-      break;
-    case 252: // NOT STANDARD - LCD E pin
-      if(!cps[P].isUnused())
-        LCDKEYPAD.setE(cps[P].getInt());
-      state = DONE;
-      break;
-    case 253: // NOT STANDARD - LCD D pins
-      if(!cps[P].isUnused() && !cps[S].isUnused())
-        LCDKEYPAD.setD(cps[S].getInt(), cps[P].getInt());
-      state = DONE;
-      break;
-    case 254: // NOT STANDARD - Keypad Row Pins
-      if(!cps[P].isUnused() && !cps[S].isUnused())
-        LCDKEYPAD.setRowPin(cps[S].getInt(), cps[P].getInt());
-      state = DONE;
-      break;
-    case 255: // NOT STANDARD - Keypad Col Pins
-      if(!cps[P].isUnused() && !cps[S].isUnused())
-        LCDKEYPAD.setColPin(cps[S].getInt(), cps[P].getInt());
-      state = DONE;
-      break;
-    case 256: // NOT STANDARD - reinit LCD.  This is a temporary 'fix' for the init timing errors
-      LCDKEYPAD.reinit();
-      state = DONE;
-      break;
-#endif
 		case 300: // NOT STANDARD - set axis STEP pin
 			SETOBJ(setStepPins(*this));
 			state = DONE;
@@ -605,17 +564,17 @@ void GCode::resetlastpos()
 
 void GCode::doPinSet(int arduinopin, int on)
 {
-	Pin p = Pin(ArduinoMap::getPort(arduinopin),  ArduinoMap::getPinnum(arduinopin));
-	p.setDirection(true);
-	p.setValue(on == 0 ? false : true);
+	int p = arduinopin;
+	pinMode(p, OUTPUT);
+	digitalWrite(p, on == 0 ? false : true);
 }
 
 void GCode::togglefan()
 {
 #ifndef USE_MBIEC
-	if(fanpin.isNull())
+	if((fanpin < 0))
 		return;
-	fanpin.setValue(!fanpin.getValue());
+	digitalWrite(fanpin, !digitalRead(fanpin));
 #else
 	TEMPERATURE.togglefan();
 #endif

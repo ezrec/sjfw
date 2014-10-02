@@ -6,8 +6,6 @@
  */
 
 #include "config.h"
-#include "Host.h"
-#include "AvrPort.h"
 #include <math.h>
 
 #include <AFMotor.h>
@@ -18,7 +16,7 @@
 class AxisEncoder : public Axis
 {
   public:
-  AxisEncoder(uint8_t motor_select, uint8_t encoder_a, uint8_t encoder_b, Pin min_pin, Pin max_pin, 
+  AxisEncoder(uint8_t motor_select, uint8_t encoder_a, uint8_t encoder_b, uint8_t min_pin, uint8_t max_pin, 
            float steps_per_unit, bool dir_inverted, 
            float max_feedrate, float home_feedrate, float min_feedrate, 
            float accel_rate_in_units, bool disable_after_move)

@@ -5,7 +5,6 @@
  *
  */
 
-#include "Globals.h"
 #include "config.h"
 
 // Quick and dirty point class

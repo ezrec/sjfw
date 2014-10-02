@@ -5,13 +5,7 @@
 #include "Axis.h"
 #include "Globals.h"
 #include "GcodeQueue.h"
-#include "ArduinoMap.h"
 #include <avr/pgmspace.h>
-
-
-
-#define max(x,y) (x > y ? x : y)
-#define min(x,y) (x < y ? x : y)
 
 // Testing shows this is probably better put nearer 1000.
 #define MIN_INTERVAL 500
@@ -99,7 +93,7 @@ void Motion::setAccel(GCode& gcode)
     if(gcode[ax].isUnused()) \
       continue; \
     \
-    AXES[ax]->FOO(ArduinoMap::getPort(gcode[ax].getInt()), ArduinoMap::getPinnum(gcode[ax].getInt())); \
+    AXES[ax]->FOO(gcode[ax].getInt()); \
   } 
  
 

@@ -1,3 +1,5 @@
+#include <SD.h>
+
 #include "GcodeQueue.h"
 
 #include "Host.h"
@@ -7,17 +9,11 @@
 #include <avr/pgmspace.h>
 #include "Motion.h"
 
-// REMOVEME
-#include "Time.h"
 #include "Eeprom.h"
-#include "SDCard.h"
-
-
 
 // TODO: Why is this here?
 void GcodeQueue::checkaxes()
 {
-#ifndef USE_MARLIN
 	static unsigned long last = millis();
 	unsigned long now = millis();
 	// Check once a second to disable motors.
@@ -53,7 +49,6 @@ void GcodeQueue::checkaxes()
 		}
 		//HOST.endl();
 	}
-#endif
 }
 
 void GcodeQueue::handlenext()
@@ -219,8 +214,8 @@ void GcodeQueue::parsebytes(char *bytes, uint8_t numbytes, uint8_t source)
 	// bytes should contain the filename
 	if (m23filename) {
 		m23filename = false;
-		if (sdcard::openFile(bytes, &sdcard::file)) {
-			sdcard::finishRead();
+		if (SDFILE = SD.open(bytes)) {
+			SDFILE.close();
 			Host::Instance(source).write_P(PSTR("File selected "));
 			Host::Instance(source).write(bytes);
 			Host::Instance(source).write_P(PSTR(", ready to print\n"));
@@ -279,19 +274,18 @@ void GcodeQueue::parsebytes(char *bytes, uint8_t numbytes, uint8_t source)
 						do {
 							char buf[32];
 							int c = 32;
-							sdcard::directoryReset();
+							File entry;
+							if (!SDFILE)
+								SDFILE = SD.open("/");
 							Host::Instance(source).write_P(PSTR("Begin file list\n"));
 							do {
-								if (sdcard::directoryNextEntry(buf, 32) == 0) {
-									if (buf[0]) {
-										Host::Instance(source).write_P(PSTR("  "));
-										// convert to uppercase
-										for (int i=0; buf[i] > 0; i++)
-											if (buf[i] >= 'a' && buf[i] <= 'z')
-												buf[i] -= 'a' - 'A';
-										Host::Instance(source).write(buf);
-										Host::Instance(source).endl();
-									}
+								entry = SDFILE.openNextFile();
+								if (entry) {
+									Host::Instance(source).write_P(PSTR("  "));
+									// convert to uppercase
+									Host::Instance(source).write(entry.name());
+									Host::Instance(source).endl();
+									entry.close();
 								}
 								else
 									buf[0] = 0;
@@ -301,19 +295,18 @@ void GcodeQueue::parsebytes(char *bytes, uint8_t numbytes, uint8_t source)
 						c[M].unset();
 					break;
 					case 21: // initialise SD
-						sdcard::SdErrorCode rsp;
-						rsp = sdcard::directoryReset();
-						if (rsp) {
+						if (!SD.exists("/")) {
 								Host::Instance(source).write_P(PSTR("SD Error: "));
-								Host::Instance(source).write(rsp);
+								Host::Instance(source).write("Not present");
 						}
-						else
+						else {
 								Host::Instance(source).write_P(PSTR("SD OK"));
+						}
 						Host::Instance(source).endl();
 						c[M].unset();
 						break;
 					case 22: // release SD
-						sdcard::reset();
+						SDFILE.close();
 						c[M].unset();
 						break;
 					case 23: // select file (TODO: hack or hook parser to retrieve filename)
@@ -322,9 +315,9 @@ void GcodeQueue::parsebytes(char *bytes, uint8_t numbytes, uint8_t source)
 						break;
 					case 24: // start/resume SD print
 						Host::Instance(source).write_P(PSTR("Printing "));
-						Host::Instance(source).write(sdcard::getCurrentfile());
+						Host::Instance(source).write(SDFILE.name());
 						Host::Instance(source).endl();
-						if(sdcard::printcurrent())
+						if(SDFILE.available())
 							Host::Instance(source).write_P(PSTR(" BEGUN"));
 						else
 							Host::Instance(source).write_P(PSTR(" FAIL"));
@@ -332,15 +325,14 @@ void GcodeQueue::parsebytes(char *bytes, uint8_t numbytes, uint8_t source)
 						c[M].unset();
 						break;
 					case 25: // pause SD print
-						sdcard::pause();
 						c[M].unset();
 						break;
 					//case 26: // SD seek
 					case 27: // report SD print status
 						Host::Instance(source).write_P(PSTR("SD printing byte "));
-						Host::Instance(source).write(sdcard::getCurrentPos(), 10);
+						Host::Instance(source).write(SDFILE.position(), 10);
 						Host::Instance(source).write_P(PSTR("/"));
-						Host::Instance(source).write(sdcard::getCurrentSize(), 10);
+						Host::Instance(source).write(SDFILE.size(), 10);
 						Host::Instance(source).endl();
 						c[M].unset();
 						break;

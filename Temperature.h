@@ -10,12 +10,10 @@
 #include "MBIEC.h"
 #else
 #include "Thermistor.h"
-#include "ArduinoMap.h"
 #endif
 
 
 #include <stdint.h>
-#include "AvrPort.h"
 #include "Host.h"
 
 
@@ -55,15 +53,9 @@ class Temperature
     MBIEC& EC;
     bool fanon;
 public:
-    // Changes FET pin
-    void changePinHotend(Port p, int pin) { return; }
-    void changePinPlatform(Port p, int pin) { return; }
     // Changes Thermistor pin
     void changePinHotend(int pin) { return; }
     void changePinPlatform(int pin) { return; }
-    // Changes FET pin
-    void changeOutputPinHotend(int pin) { return; }
-    void changeOutputPinPlatform(int pin) { return; }
     // Changes Temperature Table
     void changeTempTable(int16_t adc_val, int16_t temp_val, int8_t which) { return; }
     // Toggles fan
@@ -77,37 +69,21 @@ public:
     uint8_t hotend_setpoint;
     uint8_t platform_setpoint;
 
-    Pin hotend_heat;
-    Pin platform_heat;
+    int hotend_heat;
+    int platform_heat;
 public:
     // Changes FET pin by Port, pin
-    void changePinHotend(Port p, int pin)
-    {
-      hotend_heat.setValue(false);
-      hotend_heat = Pin(p, pin);
-      hotend_heat.setDirection(true);
-      hotend_heat.setValue(false);
-    }
-    void changePinPlatform(Port p, int pin)
-    {
-      platform_heat.setValue(false);
-      platform_heat = Pin(p, pin);
-      platform_heat.setDirection(true);
-      platform_heat.setValue(false);
-    }
-
-    // changes thermistor pin
     void changePinHotend(int pin) { hotend_therm.changePin(pin); }
     void changePinPlatform(int pin) { platform_therm.changePin(pin); }
 
     // Changes FET pin by Arduino naming
     void changeOutputPinHotend(int pin) 
     {
-      changePinHotend(ArduinoMap::getPort(pin), ArduinoMap::getPinnum(pin));
+      changePinHotend(pin);
     }
     void changeOutputPinPlatform(int pin) 
     { 
-      changePinPlatform(ArduinoMap::getPort(pin), ArduinoMap::getPinnum(pin));
+      changePinPlatform(pin);
     }
     void changeTempTable(int16_t adc_val, int16_t temp_val, int8_t which)
     {

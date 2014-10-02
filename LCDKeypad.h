@@ -1,6 +1,5 @@
 #ifndef _LCDKEYPAD_H_
 #define _LCDKEYPAD_H_
-#ifdef HAS_LCD
 /* LCD and Keypad support for sjfw -
  * (c) 2011, Christopher "ScribbleJ" Jansen
  *
@@ -9,24 +8,28 @@
  */
 
 #include "config.h"
-#include "Time.h"
-#include "LiquidCrystal.h"
+
+#ifdef HAS_LCD
 #include "Temperature.h"
 #include "GCode.h"
 #include "GcodeQueue.h"
 #include "Motion.h"
+#include "Globals.h"
+
+#include <Wire.h>
+#include <LiquidCrystal.h>
+#include <LiquidCrystal_I2C.h>
 
 #ifdef HAS_SD
-#include "SDCard.h"
-#include "fat.h"
+#include <SD.h>
 #endif
 
 // These bits of global data are used by the LCD and Keypad handler classes.
 #ifdef HAS_KEYPAD
 #include "Keypad.h"
 extern const char *_kp_buttonmap[];
-extern const Pin _kp_rpins[];
-extern const Pin _kp_cpins[];
+extern const int _kp_rpins[];
+extern const int _kp_cpins[];
 #endif
 extern uint8_t _lcd_linestarts[];
 extern float const RATES_OF_CHANGE[];
@@ -38,10 +41,18 @@ public:
 
 
   LCDKeypad() 
-  : LCD(LCD_RS_PIN, LCD_RW_PIN, LCD_E_PIN,
+  : LCD(
+#ifdef LCD_I2C_ADDR
+        LCD_I2C_ADDR,
+        LCD_E_PIN,LCD_RW_PIN,LCD_RS_PIN,
+        LCD_4_PIN,LCD_5_PIN,LCD_6_PIN,LCD_7_PIN
+#else
+        LCD_RS_PIN, LCD_RW_PIN, LCD_E_PIN,
         LCD_0_PIN, LCD_1_PIN, LCD_2_PIN, LCD_3_PIN,
         LCD_4_PIN, LCD_5_PIN, LCD_6_PIN, LCD_7_PIN,
-        LCD_X, LCD_Y, _lcd_linestarts)
+        LCD_X, LCD_Y, _lcd_linestarts
+#endif
+        )
 #ifdef HAS_KEYPAD        
     ,KEYPAD(_kp_cpins, _kp_rpins, _kp_buttonmap, KEYPAD_DEBOUNCE_MICROS)
 #endif    
@@ -51,14 +62,16 @@ public:
     motordistance_roc = &RATES_OF_CHANGE[0];
     ROC_START = motordistance_roc;
     MOD_AXIS=0;
-    lcd_x = LCD.getCols();
-    lcd_y = LCD.getRows();
+    lcd_x = LCD_X;
+    lcd_y = LCD_Y;
     switchmode_TEMP();
   }
 
   void reinit()
   {
-    LCD.reinit();
+    LCD.begin(LCD_X, LCD_Y);
+    LCD.setBacklightPin(LCD_BL_PIN, NEGATIVE);
+    LCD.on();
     LCD.clear();
     switchmode_TEMP();
     display_TEMP();
@@ -67,8 +80,6 @@ public:
   // This needs to be called regularly e.g. from the mainloop.
   void handleUpdates()
   {
-    LCD.handleUpdates();
-
 #ifdef HAS_KEYPAD
     char pressedkey = KEYPAD.getPressedKey();
     if(pressedkey && pressedkey != lastkey)
@@ -87,20 +98,15 @@ public:
 
 #ifdef HAS_SD
       update_SDSELECT();
-			update_MODS();
+      update_MODS();
 #endif
       
 #ifdef HAS_KEYPAD
       update_MOTORS();
 #endif      
     }
-
   }
 
-  void setRS(int pin) { LCD.setRS(pin); reinit(); }
-  void setRW(int pin) { LCD.setRW(pin); reinit(); }
-  void setE(int pin) { LCD.setE(pin); }
-  void setD(int n, int pin) { LCD.setD(n, pin); reinit(); }
 #ifdef HAS_KEYPAD  
   void setRowPin(int n, int pin) { KEYPAD.setRowPin(n, pin); }
   void setColPin(int n, int pin) { KEYPAD.setColPin(n, pin); }
@@ -139,7 +145,12 @@ public:
 private:
   unsigned long last_lcdrefresh;
   char lastkey;
+  File entry;
+#ifdef LCD_I2C_ADDR
+  LiquidCrystal_I2C LCD;
+#else
   LiquidCrystal LCD;
+#endif
 #ifdef HAS_KEYPAD
   Keypad KEYPAD;
 #endif
@@ -150,7 +161,7 @@ private:
   float const* ROC_START;
   int MOD_AXIS;
   bool extrude;
-  char tgraph[8*8];
+  uint8_t tgraph[8*8];
   int lcd_x;
   int lcd_y;
 
@@ -208,17 +219,17 @@ private:
   bool keyhandler_SDSELECT(char key) 
   { 
 #ifdef HAS_SD    
-    if(sdcard::isReading())
+    if(SDFILE)
       return false;
 
     switch(key)
     {
       case '6':
-        sdcard::getNextfile();
+        entry = SDFILE.openNextFile();
         switchmode_SDSELECT();
         return true;
       case '#':
-        sdcard::printcurrent();
+        SDFILE = entry;
         switchmode_SDSELECT();
         return true;
       default:
@@ -411,7 +422,7 @@ private:
     }
     for(int x=0;x<8;x++)
     {
-      LCD.writeCustomChar(x,tgraph+(x*8));
+      LCD.createChar(x,tgraph+(x*8));
     }
   }
 
@@ -422,56 +433,56 @@ private:
     int t=0;
     if(lcd_x>16)
     {
-      LCD.write_P(PSTR("Hotend:    /   "));
+      LCD.write("Hotend:    /   ");
       LCD.setCursor(8,0);
     }
     else
     {
-      LCD.write_P(PSTR("H:   /   "));
+      LCD.write("H:   /   ");
       LCD.setCursor(2,0);
     }
     t = TEMPERATURE.getHotend();
     if(t == 1024)
-      LCD.write_P(PSTR("MISSING!"));
+      LCD.write("MISSING!");
     else
     {
       LCD.write(t);
       LCD.setCursor(lcd_x > 16 ? 11 : 6,0);
-      LCD.write_P(PSTR("/ "));
+      LCD.write("/ ");
       LCD.write(TEMPERATURE.getHotendST());
     }
     LCD.setCursor(0,1);
     if(lcd_x>16)
     {
-      LCD.write_P(PSTR("Bed   :    /   "));
+      LCD.write("Bed   :    /   ");
       LCD.setCursor(8,1);
     }
     else
     {
-      LCD.write_P(PSTR("B:   /   "));
+      LCD.write("B:   /   ");
       LCD.setCursor(2,1);
     }
 
     t = TEMPERATURE.getPlatform();
     if(t == 1024)
-      LCD.write_P(PSTR("MISSING!"));
+      LCD.write("MISSING!");
     else
     {
       LCD.write(t);
       LCD.setCursor(lcd_x > 16 ? 11 : 6,1);
-      LCD.write_P(PSTR("/ "));
+      LCD.write("/ ");
       LCD.write(TEMPERATURE.getPlatformST());
     }
     LCD.setCursor(lcd_x > 16 ? 16 : 12,0);
-    LCD.write((char)0);
-    LCD.write((char)2);
-    LCD.write((char)4);
-    LCD.write((char)6);
+    LCD.write((uint8_t)0);
+    LCD.write((uint8_t)2);
+    LCD.write((uint8_t)4);
+    LCD.write((uint8_t)6);
     LCD.setCursor(lcd_x > 16 ? 16 : 12,1);
-    LCD.write((char)1);
-    LCD.write((char)3);
-    LCD.write((char)5);
-    LCD.write((char)7);
+    LCD.write((uint8_t)1);
+    LCD.write((uint8_t)3);
+    LCD.write((uint8_t)5);
+    LCD.write((uint8_t)7);
 
     tagline();
   }
@@ -492,59 +503,59 @@ private:
     if(lcd_x>16)
     {
       LCD.setCursor(8,0);
-      LCD.write_P(PSTR("        "));
+      LCD.write("        ");
       LCD.setCursor(8,0);
     }
     else
     {
       LCD.setCursor(2,0);
-      LCD.write_P(PSTR("        "));
+      LCD.write("        ");
       LCD.setCursor(2,0);
     }
     t = TEMPERATURE.getHotend();
     if(t == 1024)
-      LCD.write_P(PSTR("MISSING!"));
+      LCD.write("MISSING!");
     else
     {
       LCD.write(t);
       LCD.setCursor(lcd_x > 16 ? 11 : 6,0);
-      LCD.write_P(PSTR("/ "));
+      LCD.write("/ ");
       LCD.write(TEMPERATURE.getHotendST());
     }
     LCD.setCursor(0,1);
     if(lcd_x>16)
     {
       LCD.setCursor(8,1);
-      LCD.write_P(PSTR("         "));
+      LCD.write("         ");
       LCD.setCursor(8,1);
     }
     else
     {
       LCD.setCursor(2,1);
-      LCD.write_P(PSTR("        "));
+      LCD.write("        ");
       LCD.setCursor(2,1);
     }
 
     t = TEMPERATURE.getPlatform();
     if(t == 1024)
-      LCD.write_P(PSTR("MISSING!"));
+      LCD.write("MISSING!");
     else
     {
       LCD.write(t);
       LCD.setCursor(lcd_x > 16 ? 11 : 6,1);
-      LCD.write_P(PSTR("/ "));
+      LCD.write("/ ");
       LCD.write(TEMPERATURE.getPlatformST());
     }
     LCD.setCursor(lcd_x > 16 ? 16 : 12,0);
-    LCD.write((char)0);
-    LCD.write((char)2);
-    LCD.write((char)4);
-    LCD.write((char)6);
+    LCD.write((uint8_t)0);
+    LCD.write((uint8_t)2);
+    LCD.write((uint8_t)4);
+    LCD.write((uint8_t)6);
     LCD.setCursor(lcd_x > 16 ? 16 : 12,1);
-    LCD.write((char)1);
-    LCD.write((char)3);
-    LCD.write((char)5);
-    LCD.write((char)7);
+    LCD.write((uint8_t)1);
+    LCD.write((uint8_t)3);
+    LCD.write((uint8_t)5);
+    LCD.write((uint8_t)7);
 
     tagline();
   }
@@ -555,23 +566,28 @@ private:
     currentmode = MODS;
     display_MODS();
   }
+  void label(char const* str, float n) { LCD.write(str); LCD.write(n); }
+  void label(char const* str, char const* str2) { LCD.write(str); LCD.write(str2); }
+  void label(char const* str, int32_t n) { LCD.write(str); LCD.write(n); }
+  void label(char const* str, int n) { LCD.write(str); LCD.write((int32_t)n); }
   void display_MODS()
   {
     LCD.clear();
-    LCD.label("AXIS:",MOD_AXIS);
+    label("AXIS:",MOD_AXIS);
     LCD.setCursor(10,0);
-    LCD.label("MIN:",(int32_t)MOTION.getAxis(MOD_AXIS).getStartFeed());
+    label("MIN:",(int32_t)MOTION.getAxis(MOD_AXIS).getStartFeed());
     LCD.setCursor(0,1);
-    LCD.label("ACC:",MOTION.getAxis(MOD_AXIS).getAccel()); 
+    label("ACC:",MOTION.getAxis(MOD_AXIS).getAccel()); 
     LCD.setCursor(10,1);
-    LCD.label("MAX:",(int32_t)MOTION.getAxis(MOD_AXIS).getMaxFeed());
+    label("MAX:",(int32_t)MOTION.getAxis(MOD_AXIS).getMaxFeed());
     LCD.setCursor(0,2);
-    LCD.label("FD:",MOTION.getFeedModifier()); LCD.write("%");
+    label("FD:",MOTION.getFeedModifier()); LCD.write("%");
     LCD.setCursor(9,2);
-    LCD.label("STP:",MOTION.getAxis(MOD_AXIS).getStepsPerMM());
+    label("STP:",MOTION.getAxis(MOD_AXIS).getStepsPerMM());
 
     tagline();
   }
+#endif
 
   void update_MODS()
   {
@@ -580,6 +596,7 @@ private:
     tagline();
   }
 
+#ifdef HAS_KEYPAD
   bool keyhandler_MODS(char key) 
   { 
     bool handled = false;
@@ -723,42 +740,42 @@ private:
   void display_MOTORS()
   {
     Point& lastpos = GCode::getLastpos();
-    LCD.label("X:", lastpos[X]);
+    label("X:", lastpos[X]);
     LCD.setCursor(8,0);
-    LCD.label("Y:", lastpos[Y]);
+    label("Y:", lastpos[Y]);
     LCD.setCursor(0,1);
-    LCD.label("Z:", lastpos[Z]);
+    label("Z:", lastpos[Z]);
     if(lcd_y > 2)
     {
       LCD.setCursor(8,1);
-      LCD.label("E:", lastpos[E]);
+      label("E:", lastpos[E]);
       LCD.setCursor(0,2);
-      LCD.label("Move:", motordistance);
+      label("Move:", motordistance);
       if(lcd_x > 16)
-        LCD.label(" ROC:",*motordistance_roc);
+        label(" ROC:",*motordistance_roc);
       else
-        LCD.label("/",*motordistance_roc);
+        label("/",*motordistance_roc);
       LCD.setCursor(0,3);
-      LCD.label("Extruder:", extrude ? "ON " : "OFF");
+      label("Extruder:", extrude ? "ON " : "OFF");
     }
     else
     {
-      LCD.label("I:", motordistance);
-      LCD.label("/",*motordistance_roc);
-      LCD.label(" E:", extrude ? "-" : "*");
+      label("I:", motordistance);
+      label("/",*motordistance_roc);
+      label(" E:", extrude ? "-" : "*");
     }
     if(lcd_x>16)
     {
       LCD.setCursor(16,0);
-      LCD.write((char)0);
-      LCD.write((char)2);
-      LCD.write((char)4);
-      LCD.write((char)6);
+      LCD.write((uint8_t)0);
+      LCD.write((uint8_t)2);
+      LCD.write((uint8_t)4);
+      LCD.write((uint8_t)6);
       LCD.setCursor(16,1);
-      LCD.write((char)1);
-      LCD.write((char)3);
-      LCD.write((char)5);
-      LCD.write((char)7);
+      LCD.write((uint8_t)1);
+      LCD.write((uint8_t)3);
+      LCD.write((uint8_t)5);
+      LCD.write((uint8_t)7);
     }
 
 
@@ -768,7 +785,7 @@ private:
   {
     currentmode = MENU;
     LCD.clear();
-    LCD.write_P(PSTR("MAIN MENU"));
+    LCD.write("MAIN MENU");
   }
 
     
@@ -778,6 +795,7 @@ private:
     LCD.clear();
     display_SDSELECT();
   }
+#endif  
 
   void update_SDSELECT()
   {
@@ -789,34 +807,33 @@ private:
   void display_SDSELECT()
   {
 #ifdef HAS_SD    
-    if(sdcard::isReading())
+    if(!entry.isDirectory())
     {
-      LCD.write_P(PSTR("Printing: "));
+      LCD.write("Printing: ");
       LCD.setCursor(0,1);
-      LCD.write(sdcard::getCurrentfile());
+      LCD.write(SDFILE.name());
       tagline();
       return;
+    } else {
+      entry = SDFILE.openNextFile();
     }
-    if(sdcard::getCurrentfile()[0] == 0)
-      sdcard::getNextfile();
 
-    LCD.write_P(PSTR("SD File Select"));
+    LCD.write("SD File Select");
     LCD.setCursor(0,1);
-    LCD.write_P(PSTR("> "));
-    LCD.write(sdcard::getCurrentfile());
+    LCD.write("> ");
+    LCD.write(SDFILE.name());
     if(lcd_y > 2)
     {
       LCD.setCursor(0,2);
-      LCD.write_P(PSTR("6=NEXT #=PRINT"));
+      LCD.write("6=NEXT #=PRINT");
     }
 #else
-    LCD.write_P(PSTR("Get SD from"));
+    LCD.write("Get SD from");
     LCD.setCursor(0,1);
-    LCD.write_P(PSTR("Kliment on IRC"));
+    LCD.write("Kliment on IRC");
 #endif    
     tagline();
   }
-#endif  
 
   void tagline()
   {
@@ -824,14 +841,14 @@ private:
       return;
     LCD.setCursor(0,3);
 #ifdef HAS_SD
-    if(sdcard::isReading())
+    if(!SDFILE.isDirectory())
     {
-      LCD.write_P(PSTR("SD Print: "));
-      LCD.write((uint16_t)(sdcard::getFilePos() * 100 / sdcard::getFileSize()));
-      LCD.write_P(PSTR("%"));
+      LCD.write("SD Print: ");
+      LCD.write((uint16_t)(SDFILE.position() * 100 / SDFILE.size()));
+      LCD.write("%");
 		} else {
 #endif
-    	LCD.write_P(PSTR(LCD_TAGLINE));
+    	LCD.write(LCD_TAGLINE);
 #ifdef HAS_SD
 		}
 #endif

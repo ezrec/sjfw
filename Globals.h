@@ -17,5 +17,9 @@ inline int getFreeRam () {
 // assume multiple places that T is the last item, and the major axis are in order at the start.
 enum { X=0, Y, Z, E, M, G, F, P, S, T };
 
+#ifdef HAS_SD
+#include <SD.h>
+extern File SDFILE;
+#endif
 
 #endif

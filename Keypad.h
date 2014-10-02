@@ -5,16 +5,12 @@
  * 
  */
 
-#include "AvrPort.h"
-#include "ArduinoMap.h"
-#include "Time.h"
 #include "config.h"
 
 class Keypad {
 public:
  
-  // TODO: Why do we copy cps and rps but sit on buttonmap directly? Consistency!
-  Keypad(const Pin *cps, const Pin *rps, const char **buttonmap_in, uint8_t debounce_in)
+  Keypad(const int *cps, const int *rps, const char **buttonmap_in, uint8_t debounce_in)
   {                    
     buttonmap = buttonmap_in;
     debounce  = debounce_in;
@@ -36,19 +32,17 @@ public:
 
   void reinit()
   {
-    if(colpins[0].isNull())
+    if ( colpins[0] < 0)
       return;
 
     for (int i = 0; i < KP_COLS; i++) 
     {
-      colpins[i].setDirection(false);
-      colpins[i].setValue(true);
+      pinMode(colpins[i], INPUT);
     }
 
     for (int i = 0; i < KP_ROWS; i++) 
     {
-      rowpins[i].setDirection(false);
-      rowpins[i].setValue(true);
+      pinMode(rowpins[i], INPUT_PULLUP);
     }
   }
 
@@ -56,18 +50,17 @@ public:
   // Scans one column of keys for keypresses.
   uint8_t scanCol(uint8_t colnum)
   {
-    colpins[colnum].setDirection(true);
-    colpins[colnum].setValue(false);
+    pinMode(colpins[colnum], OUTPUT);
+    digitalWrite(colpins[colnum], 0);
 
     uint8_t ret = 0;
     for(int x=0;x<KP_ROWS;x++)
     {
-      if(!rowpins[x].getValue())
+      if(!digitalRead(rowpins[x]))
         ret |= 1 << x;
     }
 
-    colpins[colnum].setDirection(false);
-    colpins[colnum].setValue(false);
+    pinMode(colpins[colnum], INPUT);
 
     return ret;
   }
@@ -78,7 +71,7 @@ public:
   char getPressedKey()
   {
     // if config is invalid, maybe we get it later.
-    if(colpins[0].isNull())
+    if(colpins[0] < 0)
       return 0;
 
     unsigned long now = micros();
@@ -115,15 +108,12 @@ public:
     return 0;
   }
 
-  void setColPin(Port& p, int pin, int n) { colpins[n] = Pin(p, pin); if(n == 0) reinit(); }
-  void setRowPin(Port& p, int pin, int n) { rowpins[n] = Pin(p, pin); }
-  // using Arduino schema
-  void setColPin(int n, int pin) { colpins[n] = Pin(ArduinoMap::getPort(pin), ArduinoMap::getPinnum(pin)); if(n ==0) reinit(); }
-  void setRowPin(int n, int pin) { rowpins[n] = Pin(ArduinoMap::getPort(pin), ArduinoMap::getPinnum(pin)); }
+  void setColPin(int n, int pin) { colpins[n] = pin; if(n ==0) reinit(); }
+  void setRowPin(int n, int pin) { rowpins[n] = pin; }
 
 private:
-  Pin colpins[KP_COLS];
-  Pin rowpins[KP_ROWS];
+  int colpins[KP_COLS];
+  int rowpins[KP_ROWS];
 
   const char **buttonmap;
   uint8_t debounce;

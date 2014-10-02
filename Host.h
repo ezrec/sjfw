@@ -7,8 +7,8 @@
 
 	Loosely based on Teacup serial library
 */
+#include <Arduino.h>
 
-#include "RingBuffer.h"
 #include <avr/interrupt.h>
 #include <stdlib.h>
 #include "config.h"
@@ -27,22 +27,10 @@ class Host
 		// singleton
 		static Host& Instance(int port)
 		{
-#ifdef HAS_BT
-			if(port == 2)
-				return i2();
-			else
-#else
-			(void)port;	// Unused
-#endif
-			return i0();
+			static Host instance(HOST_BAUD, port);
+			return instance;
 		}
 		static Host& Instance() { return Instance(0); }
-		static Host& i0() { static Host instance(HOST_BAUD,0); return instance; }
-#ifdef HIGHPORTS
-		static Host& i2() { static Host instance2(BT_BAUD,2); return instance2; }
-#else
-		static Host& i2() { return i0(); }
-#endif
 	private:
 		explicit Host(unsigned long baud, int port);
 		Host(Host&);
@@ -50,24 +38,14 @@ class Host
 		int port;
 		char convbuf[32];
 
-		void Init0(unsigned long baud);
-		void Init2(unsigned long baud);
 	public:
-
-		uint8_t rxchars() { uint8_t l = rxring.getCount(); return l; }
-		uint8_t popchar() { uint8_t c = rxring.pop(); return c; }
-		uint8_t peekchar() { uint8_t c = rxring.peek(0); return c; }
+		uint8_t rxchars() { return Serial.available(); }
+		uint8_t popchar() { return Serial.read(); }
+		uint8_t peekchar() { return Serial.peek(); }
 
 		void write(uint8_t data)
 		{
-			for (;txring.isFull(););
-			txring.push(data);
-#ifdef HIGHPORTS
-			if(port == 2)
-				UCSR2B |= MASK(UDRIE2);
-			else
-#endif
-				UCSR0B |= MASK(UDRIE0);
+			Serial.write(data);
 		}
 
 		void write(const char *data) { uint8_t i = 0, r; while ((r = data[i++])) write(r); }
@@ -158,53 +136,6 @@ class Host
 		}
 
 		void scan_input();
-
-		void rx_interrupt_handler0()
-		{
-			uint8_t c = UDR0;
-			rxring.push(c);
-			if(c <= 32)
-				input_ready++;
-		}
-
-#ifdef HIGHPORTS
-		void rx_interrupt_handler2()
-		{
-			uint8_t c = UDR2;
-			rxring.push(c);
-			if(c <= 32)
-				input_ready++;
-		}
-#endif
-
-
-
-		void udre_interrupt_handler0()
-		{
-			if(txring.getCount() > 0)
-				UDR0 = txring.pop();
-			else
-				UCSR0B &= ~MASK(UDRIE0);
-		}
-
-#ifdef HIGHPORTS
-		void udre_interrupt_handler2()
-		{
-			if(txring.getCount() > 0)
-				UDR2 = txring.pop();
-			else
-				UCSR2B &= ~MASK(UDRIE2);
-		}
-#endif
-
-
-	private:
-		uint8_t rxbuf[HOST_RECV_BUFSIZE];
-		RingBufferT<uint8_t> rxring;
-		uint8_t txbuf[HOST_SEND_BUFSIZE];
-		RingBufferT<uint8_t> txring;
-		volatile uint8_t input_ready;
-
 };
 
 extern Host& HOST;

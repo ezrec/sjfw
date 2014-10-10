@@ -11,11 +11,7 @@
 extern LCDKeypad LCDKEYPAD;
 #endif
 
-#ifdef USE_MARLIN
-#define SETOBJ(x) Marlin::x
-#else
 #define SETOBJ(x) MOTION.x
-#endif
 
 Point GCode::lastpos;
 float GCode::lastfeed;
@@ -30,12 +26,6 @@ int   GCode::powerpin = -1;
 // It WILL get called at least once.
 void GCode::prepare()
 {
-#ifdef USE_MARLIN
-	// Marlin might be able to prepare in advance of being asked to execute the codes with some help.
-	state = PREPARED;
-	return;
-#else
-
 	if(state == PREPARED)
 		return;
 
@@ -49,13 +39,11 @@ void GCode::prepare()
 		state = PREPARED;
 	else
 		MOTION.gcode_precalc(*this,lastfeed,&lastpos);
-#endif
 }
 
 // Called when we have extra time to optimize a gcode.
 void GCode::optimize(GCode& next)
 {
-#ifndef USE_MARLIN
 	if(state != PREPARED)
 		return;
 
@@ -63,7 +51,6 @@ void GCode::optimize(GCode& next)
 		return;
 
 	MOTION.gcode_optimize(*this, next);
-#endif
 }
 
 // Called at the time of enqueue
@@ -137,7 +124,6 @@ void GCode::dump_to_host()
 
 void GCode::wrapupmove()
 {
-#ifndef USE_MARLIN
 	if(!cps[G].isUnused())
 	{
 #ifdef DEBUG_MOVE
@@ -148,30 +134,17 @@ void GCode::wrapupmove()
 #endif
 		MOTION.wrapup(*this);
 	}
-#endif
 }
 
 
 #define SKIPEXTRUDE if(DONTRUNEXTRUDER) { state = DONE; return; }
 void GCode::do_g_code()
 {
-#ifdef USE_MARLIN
-// Marlin's only method of synchronizing these sorts of commands is to wait 'till it's cleared out.
-	if(cps[G].getInt() != 1 && !Marlin::isBufferEmpty())
-		return;
-#endif
-
-
 	switch(cps[G].getInt())
 	{
 		case 0:
 		case 1: // Linear Move
-#ifdef USE_MARLIN
-			if(Marlin::add_buffer_line(*this))
-				state = DONE;
-#else
 			MOTION.gcode_execute(*this);
-#endif
 			break;
 		case 4: // Pause for P millis
 			if(millis() - cps[P].getInt() > startmillis)
@@ -221,12 +194,6 @@ void GCode::write_temps_to_host(int port)
 
 void GCode::do_m_code()
 {
-#ifdef USE_MARLIN
-// Marlin's only method of synchronizing these sorts of commands is to wait 'till it's cleared out.
-	if(!Marlin::isBufferEmpty())
-		return;
-#endif
-
 	switch(cps[M].getInt())
 	{
 		case 0: // Finish up and shut down.
@@ -556,26 +523,18 @@ void GCode::do_m_code()
 
 void GCode::resetlastpos()
 {
-#ifndef USE_MARLIN
 	lastpos = MOTION.getCurrentPosition();
-#endif
-	// TODO?
 }
 
-void GCode::doPinSet(int arduinopin, int on)
+void GCode::doPinSet(int p, int on)
 {
-	int p = arduinopin;
 	pinMode(p, OUTPUT);
 	digitalWrite(p, on == 0 ? false : true);
 }
 
 void GCode::togglefan()
 {
-#ifndef USE_MBIEC
 	if((fanpin < 0))
 		return;
 	digitalWrite(fanpin, !digitalRead(fanpin));
-#else
-	TEMPERATURE.togglefan();
-#endif
 }

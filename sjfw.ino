@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  *
  */
+#define DEBUG
 
 #include "config.h"
 
@@ -39,15 +40,26 @@ extern "C" void atexit(void (*function)(void))
 #include <LiquidCrystal_I2C.h>
 
 void setup () {
+    HOST.begin();
     LCDKEYPAD.reinit();
 
 #ifdef HAS_SD
     // Init SD
     SD.begin(SD_SELECT_PIN);
+#ifdef SD_AUTORUN
+    SDFILE = SD.open(SD_AUTORUN);
+    if (SDFILE) {
+        HOST.write("AUTORUN GOOD\n");
+    }
+    else
+    {
+        HOST.write("AUTORUN FAIL\n");
+        eeprom::beginRead();
+    }
 #endif
-
+#else
     eeprom::beginRead();
-
+#endif
     // Print banner
     HOST.write_P(PSTR("start\n"));
 }
@@ -75,7 +87,6 @@ void loop () {
     // Update LCD, read keypresses, etc.
     LCDKEYPAD.handleUpdates();
 #endif
-
 }
 
 /* vim: set shiftwidth=4 expandtab:  */

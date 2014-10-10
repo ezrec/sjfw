@@ -1,9 +1,11 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
-#define HAS_LCD  1
-#define HAS_SD   1
-#define HAS_KEYPAD 1
+#define HAS_LCD         1
+#define HAS_KEYPAD      1
+#define HAS_SD          1
+
+#define SD_AUTORUN      "sjfwauto.gc"
 
 #include "config-common.h"
 

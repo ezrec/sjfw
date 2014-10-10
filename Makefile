@@ -6,6 +6,8 @@ MONITOR_PORT = /dev/ttyACM0
 
 ARDMK_DIR=/usr/share/arduino
 
+MONITOR_BAUDRATE = 115200
+USER_LIB_PATH = libraries
 ARDUINO_LIBS = AFMotor Encoder Encoder/utility temperature LiquidCrystal \
 	       Wire SD
 

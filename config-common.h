@@ -42,7 +42,7 @@
 
 
 
-#define HOST_BAUD 57600
+#define HOST_BAUD 115200
 // if defined, INTERRUPT_STEPS allows the comm ISRs to interrupt the movement ISR.
 #define INTERRUPT_STEPS
 // How often to recompute speed for acceleration in sjfw

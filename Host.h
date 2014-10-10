@@ -9,33 +9,24 @@
 */
 #include <Arduino.h>
 
-#include <avr/interrupt.h>
 #include <stdlib.h>
 #include "config.h"
-#include <avr/pgmspace.h>
-
-#define MASK(PIN) (1 << PIN)
-#if ((defined __AVR_ATmega2560__) || (defined __AVR_ATmega1280__))
-#define HIGHPORTS
-#else
-#undef HIGHPORTS
-#endif
 
 class Host
 {
 	public:
 		// singleton
-		static Host& Instance(int port)
+		static Host& Instance(int port = 0)
 		{
-			static Host instance(HOST_BAUD, port);
+			static Host instance(port, HOST_BAUD);
 			return instance;
 		}
-		static Host& Instance() { return Instance(0); }
 	private:
-		explicit Host(unsigned long baud, int port);
+		explicit Host(int port, unsigned long baud);
 		Host(Host&);
 		Host& operator=(Host&);
 		int port;
+		unsigned long baud;
 		char convbuf[32];
 
 	public:
@@ -136,6 +127,8 @@ class Host
 		}
 
 		void scan_input();
+
+		void begin();
 };
 
 extern Host& HOST;

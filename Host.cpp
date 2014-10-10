@@ -9,12 +9,15 @@
 
 #include "config.h"
 
-
-
-Host::Host(unsigned long BAUD, int port_in)
+Host::Host(int port_in, unsigned long BAUD)
 {
 	port = port_in;
-	Serial.begin(BAUD);
+	baud = BAUD;
+}
+
+void Host::begin()
+{
+	Serial.begin(baud);
 }
 
 void Host::scan_input()
